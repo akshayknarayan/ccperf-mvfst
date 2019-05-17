@@ -1,0 +1,3 @@
+[submodule "mvfst"]
+	path = mvfst
+	url = git@github.com:akshayknarayan/mvfst
