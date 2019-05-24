@@ -14,7 +14,8 @@ typedef uint64_t u64;
 
 class QuicConnection : public quic::QuicSocket::ConnectionCallback,
                        public quic::QuicSocket::ReadCallback,
-                       public quic::QuicSocket::WriteCallback 
+                       public quic::QuicSocket::WriteCallback,
+                       public quic::QuicSocket::DeliveryCallback
 {
   public:
     QuicConnection(const std::string& host, u16 port): addr(host.c_str(), port) {}
@@ -43,6 +44,7 @@ class QuicConnection : public quic::QuicSocket::ConnectionCallback,
             auto streamId = quicClient->createBidirectionalStream().value();
             pendingStreams[streamId].append(data, len);
             quicClient->notifyPendingWriteOnStream(streamId, this);
+            quicClient->registerDeliveryCallback(streamId, len - 1, this);
         });
     }
 
@@ -122,6 +124,23 @@ class QuicConnection : public quic::QuicSocket::ConnectionCallback,
     void onConnectionWriteError(
         std::pair<quic::QuicErrorCode, folly::Optional<folly::StringPiece>> error
     ) noexcept override { /* unused */ }
+
+    // 
+    // DeliverCallback
+    //
+
+    void onDeliveryAck(
+        quic::StreamId streamId,
+        u64 offset,
+        std::chrono::microseconds rtt
+    ) noexcept override {
+        LOG(INFO) << "CCPerf stream done: " << streamId << " rtt " << rtt.count();
+        quicClient->shutdownWrite(streamId);
+    }
+
+    void onCanceled(quic::StreamId id, u64 offset) noexcept override {
+        LOG(ERROR) << "CCPerf client stream failed:" << id;
+    }
 
 	~QuicConnection() override = default;
 
