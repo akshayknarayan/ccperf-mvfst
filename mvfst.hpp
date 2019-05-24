@@ -7,18 +7,21 @@
 #include <quic/api/QuicSocket.h>
 #include <quic/client/QuicClientTransport.h>
 #include <quic/common/test/TestUtils.h>
+#include <quic/server/QuicServer.h>
+#include <quic/server/QuicServerTransport.h>
+#include <quic/server/QuicSharedUDPSocketFactory.h>
 
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-class QuicConnection : public quic::QuicSocket::ConnectionCallback,
-                       public quic::QuicSocket::ReadCallback,
-                       public quic::QuicSocket::WriteCallback,
-                       public quic::QuicSocket::DeliveryCallback
+class QuicClient : public quic::QuicSocket::ConnectionCallback,
+                   public quic::QuicSocket::ReadCallback,
+                   public quic::QuicSocket::WriteCallback,
+                   public quic::QuicSocket::DeliveryCallback
 {
   public:
-    QuicConnection(const std::string& host, u16 port): addr(host.c_str(), port) {}
+    QuicClient(const std::string& host, u16 port): addr(host.c_str(), port) {}
 
     void connect() {
         folly::ScopedEventBaseThread networkThread("CCPerfClientThread");
@@ -142,11 +145,121 @@ class QuicConnection : public quic::QuicSocket::ConnectionCallback,
         LOG(ERROR) << "CCPerf client stream failed:" << id;
     }
 
-	~QuicConnection() override = default;
+	~QuicClient() override = default;
 
   private:
     folly::SocketAddress addr;
     std::shared_ptr<quic::QuicClientTransport> quicClient;
     folly::EventBase *evb;
     std::map<quic::StreamId, folly::IOBufQueue> pendingStreams;
+};
+
+class QuicServer  {
+  public:
+    class Connection : public quic::QuicSocket::ConnectionCallback,
+                       public quic::QuicSocket::ReadCallback 
+    {
+      public:
+        Connection(folly::EventBase *e) : evb(e) {}
+
+        void setQuicSocket(std::shared_ptr<quic::QuicSocket> sock) {
+            quicSocket = sock;
+        }
+
+        folly::EventBase* getEventBase() {
+            return evb;
+        }
+
+        //
+        // ConnectionCallback
+        //
+
+        void onNewBidirectionalStream(quic::StreamId id) noexcept override {
+            quicSocket->setReadCallback(id, this);
+        }
+
+        //meh 
+        void onNewUnidirectionalStream(quic::StreamId id) noexcept override { assert(false); }
+    
+        void onStopSending(
+            quic::StreamId id,
+            quic::ApplicationErrorCode error
+        ) noexcept override {
+            LOG(INFO) << "Done sending";
+        }
+
+        void onConnectionEnd() noexcept override {
+            LOG(INFO) << "Connection ended.";
+        }
+
+        void onConnectionError(
+            std::pair<quic::QuicErrorCode, std::string> error
+        ) noexcept override {
+            LOG(ERROR) << "CCPerf server connection error=" << error.second;
+        }
+
+        // 
+        // ReadCallback
+        //
+
+        void readAvailable(quic::StreamId id) noexcept override {
+            LOG(INFO) << "Read on stream " << id;
+        }
+
+        void readError(
+            quic::StreamId id, 
+            std::pair<quic::QuicErrorCode, folly::Optional<folly::StringPiece>> err
+        ) noexcept override {
+            LOG(ERROR) << "CCPerf server read error=" << err;
+        }
+
+      private:
+        folly::EventBase *evb;
+        std::shared_ptr<quic::QuicSocket> quicSocket;
+    };
+
+    class TransportFactory: public quic::QuicServerTransportFactory {
+      public:
+        quic::QuicServerTransport::Ptr make(
+            folly::EventBase *evb,
+            std::unique_ptr<folly::AsyncUDPSocket> sock,
+            const folly::SocketAddress&,
+            std::shared_ptr<const fizz::server::FizzServerContext> ctx
+        ) noexcept override {
+            assert(evb == sock->getEventBase());
+            auto connectionHandler = std::make_unique<QuicServer::Connection>(evb);
+            auto transport = quic::QuicServerTransport::make(evb, std::move(sock), *connectionHandler, ctx);
+            connectionHandler->setQuicSocket(transport);
+            connectionHandlers.push_back(std::move(connectionHandler));
+            return transport;
+        }
+
+        ~TransportFactory() override {
+            while (!connectionHandlers.empty()) {
+                auto& h = connectionHandlers.back();
+                h->getEventBase()->runImmediatelyOrRunInEventBaseThreadAndWait([this] {
+                    connectionHandlers.pop_back();
+                });
+            }
+        }
+
+        std::vector<std::unique_ptr<QuicServer::Connection>> connectionHandlers;
+    };
+
+    QuicServer(u16 port) : quicServer(quic::QuicServer::createQuicServer()) {
+        addr.setFromLocalPort(port);
+        quicServer->setFizzContext(quic::test::createServerCtx());
+        quicServer->setQuicServerTransportFactory(std::make_unique<quic::QuicServerTransportFactory>());
+    }
+
+    void start() {
+        quicServer->start(addr, 0);
+        LOG(INFO) << "CCPerf server started";
+        evb->loopForever();
+    }
+
+  private:
+    folly::SocketAddress addr;
+    folly::EventBase *evb;
+    std::shared_ptr<quic::QuicServer> quicServer;
 };
