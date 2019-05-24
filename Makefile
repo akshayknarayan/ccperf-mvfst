@@ -1,6 +1,6 @@
 all: mvfst.o
 
-mvfst.o: mvfst/_build
+mvfst.o: mvfst/_build mvfst.hpp
 	clang++ \
 		-std=c++17 \
 		-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/ \
@@ -18,6 +18,7 @@ mvfst.o: mvfst/_build
 		-I./mvfst/_build/build/googletest/src/googletest/googletest/include \
 		-I./mvfst \
 		-I./mvfst/_build/deps/include \
+		-o mvfst.o \
 		mvfst.hpp
 
 mvfst/_build:
