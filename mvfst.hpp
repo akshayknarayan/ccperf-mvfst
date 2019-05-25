@@ -1,5 +1,7 @@
 #pragma once
 
+#include <future>
+
 #include <glog/logging.h>
 
 #include <folly/io/async/ScopedEventBaseThread.h>
@@ -42,13 +44,17 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
         });
     }
 
-    void send(void *data, u32 len) {
-        this->evb->runInEventBaseThread([=] {
-            auto streamId = quicClient->createBidirectionalStream().value();
+    std::promise<int>* send(void *data, u32 len) {
+        quic::StreamId streamId;
+        this->evb->runInEventBaseThreadAndWait([&] {
+            streamId = quicClient->createBidirectionalStream().value();
             pendingStreams[streamId].append(data, len);
+            pendingStreamPromises[streamId] = new std::promise<int>();
             quicClient->notifyPendingWriteOnStream(streamId, this);
             quicClient->registerDeliveryCallback(streamId, len - 1, this);
         });
+
+        return pendingStreamPromises[streamId];
     }
 
     //
@@ -138,11 +144,15 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
         std::chrono::microseconds rtt
     ) noexcept override {
         LOG(INFO) << "CCPerf stream done: " << streamId << " rtt " << rtt.count();
+        pendingStreamPromises[streamId]->set_value(0);
+        pendingStreamPromises.erase(streamId);
         quicClient->shutdownWrite(streamId);
     }
 
     void onCanceled(quic::StreamId id, u64 offset) noexcept override {
         LOG(ERROR) << "CCPerf client stream failed:" << id;
+        pendingStreamPromises[id]->set_value(-1);
+        pendingStreamPromises.erase(id);
     }
 
 	~QuicClient() override = default;
@@ -152,6 +162,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
     std::shared_ptr<quic::QuicClientTransport> quicClient;
     folly::EventBase *evb;
     std::map<quic::StreamId, folly::IOBufQueue> pendingStreams;
+    std::map<quic::StreamId, std::promise<int>*> pendingStreamPromises;
 };
 
 class QuicServer  {
@@ -249,7 +260,7 @@ class QuicServer  {
     QuicServer(u16 port) : quicServer(quic::QuicServer::createQuicServer()) {
         addr.setFromLocalPort(port);
         quicServer->setFizzContext(quic::test::createServerCtx());
-        quicServer->setQuicServerTransportFactory(std::make_unique<quic::QuicServerTransportFactory>());
+        quicServer->setQuicServerTransportFactory(std::make_unique<QuicServer::TransportFactory>());
     }
 
     void start() {

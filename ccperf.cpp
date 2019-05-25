@@ -5,6 +5,7 @@
 DEFINE_string(mode, "client", "Send (client) or receive (server) traffic");
 DEFINE_string(ip, "127.0.0.1", "IP to connect to");
 DEFINE_int32(port, 0, "Port to listen on/send to");
+DEFINE_int32(bytes, 1000000, "Number of bytes to transfer");
 
 void do_client() {
     auto client = QuicClient(FLAGS_ip, FLAGS_port);
