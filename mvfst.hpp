@@ -48,21 +48,25 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
     std::future<int> send(void *data, u32 len) {
         quic::StreamId streamId;
         this->evb->runInEventBaseThreadAndWait([&] {
-            streamId = quicClient->createBidirectionalStream().value();
+            if (auto ok = quicClient->createBidirectionalStream()) {
+                streamId = ok.value();
+            } else {
+                LOG(ERROR) << "Could not createBidirectionalStream: " << ok.error();
+                return;
+            }
+
             pendingStreams[streamId].append(data, len);
             pendingStreamPromises[streamId] = std::promise<int>();
             
             // returns "Result"
-            auto ok = quicClient->notifyPendingWriteOnStream(streamId, this);
-            if (!ok) {
+            if (auto ok = quicClient->notifyPendingWriteOnStream(streamId, this); !ok) {
                 LOG(ERROR) << "Could not notifyPendingWriteOnStream: " << ok.error();
                 pendingStreamPromises[streamId].set_value(-1);
                 return; 
             }
 
             // returns "Result"
-            ok = quicClient->registerDeliveryCallback(streamId, len - 1, this);
-            if (!ok) {
+            if (auto ok = quicClient->registerDeliveryCallback(streamId, len - 1, this); !ok) {
                 LOG(ERROR) << "Could not registerDeliveryCallback: " << ok.error();
                 pendingStreamPromises[streamId].set_value(-1);
                 return;
@@ -70,6 +74,42 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
         });
 
         return pendingStreamPromises[streamId].get_future();
+    }
+
+    // In case caller doesn't wan't to allocate a massive data buffer
+    // see also sendOnStream
+    std::pair<quic::StreamId, std::future<int>> createStream(u32 len) {
+        quic::StreamId streamId;
+        this->evb->runInEventBaseThreadAndWait([&] {
+            if (auto ok = quicClient->createBidirectionalStream()) {
+                streamId = ok.value();
+            } else {
+                LOG(ERROR) << "Could not createBidirectionalStream: " << ok.error();
+                return;
+            }
+
+
+            pendingStreamPromises[streamId] = std::promise<int>();
+            if (auto ok = quicClient->registerDeliveryCallback(streamId, len - 1, this); !ok) {
+                LOG(ERROR) << "Could not registerDeliveryCallback: " << ok.error();
+                pendingStreamPromises[streamId].set_value(-1);
+                return;
+            }
+        });
+
+        return std::pair(streamId, pendingStreamPromises[streamId].get_future());
+    }
+    
+    void sendOnStream(quic::StreamId id, void *data, u32 len) {
+        quic::StreamId streamId;
+        this->evb->runInEventBaseThreadAndWait([&] {
+            pendingStreams[streamId].append(data, len);
+            if (auto ok = quicClient->notifyPendingWriteOnStream(streamId, this); !ok) {
+                LOG(ERROR) << "Could not notifyPendingWriteOnStream: " << ok.error();
+                pendingStreamPromises[streamId].set_value(-1);
+                return; 
+            }
+        });
     }
 
     //

@@ -14,15 +14,29 @@ void do_client() {
     auto ready = client.connect();
     ready.wait();
 
-    void *data = calloc(1024, sizeof(char));
     LOG(INFO) << "sending";
-    auto on_done = client.send(data, 1024);
-    LOG(INFO) << "waiting";
+    auto create_stream = client.createStream(FLAGS_bytes);
+    auto streamId = create_stream.first;
+    auto on_done = std::move(create_stream.second);
 
+    const u32 CHUNK_SIZE = 1024;
+    void *data = calloc(CHUNK_SIZE, sizeof(char));
+    if (data == NULL) {
+        LOG(ERROR) << "Could not allocate send buffer";
+        return;
+    }
+
+    auto num_writes = ((FLAGS_bytes % CHUNK_SIZE) == 0) ? (FLAGS_bytes / CHUNK_SIZE) : ((FLAGS_bytes / CHUNK_SIZE) + 1);
+    while (num_writes -- > 0) {
+        client.sendOnStream(streamId, data, CHUNK_SIZE);
+    }
+
+    LOG(INFO) << "waiting";
     int ok = on_done.get();
     if (ok < 0) {
         LOG(ERROR) << "send failed";
     }
+
     LOG(INFO) << "done";
 }
 
