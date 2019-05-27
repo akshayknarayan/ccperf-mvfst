@@ -61,6 +61,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
     //
     
     void onNewBidirectionalStream(quic::StreamId id) noexcept override {
+        LOG(INFO) << "Created stream " << id;
         quicClient->setReadCallback(id, this);
     }
 
@@ -107,6 +108,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
         quic::StreamId streamId,
         u64 maxToSend
     ) noexcept override {
+        LOG(INFO) << "Writing on " << streamId;
         auto folly_buf = &pendingStreams[streamId];
         auto ok = quicClient->writeChain(streamId, std::move(folly_buf->move()), true, false);
         if (ok.hasError()) {
@@ -186,6 +188,7 @@ class QuicServer  {
         //
 
         void onNewBidirectionalStream(quic::StreamId id) noexcept override {
+            LOG(INFO) << "New stream " << id;
             quicSocket->setReadCallback(id, this);
         }
 
