@@ -23,10 +23,9 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
                    public quic::QuicSocket::DeliveryCallback
 {
   public:
-    QuicClient(const std::string& host, u16 port): addr(host.c_str(), port) {}
+    QuicClient(const std::string& host, u16 port): addr(host.c_str(), port), networkThread("CCPerfClientThread") {}
 
     void connect() {
-        folly::ScopedEventBaseThread networkThread("CCPerfClientThread");
         this->evb = networkThread.getEventBase();
         
         this->evb->runInEventBaseThreadAndWait([&] {
@@ -160,6 +159,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
   private:
     folly::SocketAddress addr;
     std::shared_ptr<quic::QuicClientTransport> quicClient;
+    folly::ScopedEventBaseThread networkThread;
     folly::EventBase *evb;
     std::map<quic::StreamId, folly::IOBufQueue> pendingStreams;
     std::map<quic::StreamId, std::promise<int>*> pendingStreamPromises;
