@@ -266,11 +266,11 @@ class QuicServer  {
     void start() {
         quicServer->start(addr, 0);
         LOG(INFO) << "CCPerf server started";
-        evb->loopForever();
+        evb.loopForever();
     }
 
   private:
     folly::SocketAddress addr;
-    folly::EventBase *evb;
+    folly::EventBase evb;
     std::shared_ptr<quic::QuicServer> quicServer;
 };
