@@ -261,7 +261,11 @@ class QuicServer  {
     };
 
     QuicServer(u16 port) : quicServer(quic::QuicServer::createQuicServer()) {
-        addr.setFromLocalPort(port);
+        std::ostringstream port_str_conv;
+        port_str_conv << "127.0.0.1:" << port; // ugh
+        std::string port_str = port_str_conv.str();
+        LOG(INFO) << "Binding to " << port_str;
+        addr.setFromLocalIpPort(port_str);
         quicServer->setFizzContext(quic::test::createServerCtx());
         quicServer->setQuicServerTransportFactory(std::make_unique<QuicServer::TransportFactory>());
     }
