@@ -23,11 +23,11 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
                    public quic::QuicSocket::DeliveryCallback
 {
   public:
-    QuicClient(const std::string& host, u16 port): addr(host.c_str(), port), networkThread("CCPerfClientThread") {}
+    QuicClient(const std::string& host, u16 port): addr(host.c_str(), port), networkThread("CCPerfClientThread") {
+        this->evb = networkThread.getEventBase();
+    }
 
     void connect() {
-        this->evb = networkThread.getEventBase();
-        
         this->evb->runInEventBaseThreadAndWait([&] {
             auto sock = std::make_unique<folly::AsyncUDPSocket>(evb);
             quicClient =
