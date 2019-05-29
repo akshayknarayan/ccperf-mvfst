@@ -138,7 +138,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
             folly_buf->append(std::move(ok.value()));
             quicClient->notifyPendingWriteOnStream(streamId, this);
         } else { // send ok
-            LOG(INFO) << "Wrote " << folly_buf->chainLength() << "bytes";
+            LOG(INFO) << "Write successful";
             pendingStreams.erase(streamId);
         }
     }
@@ -238,9 +238,7 @@ class QuicServer  {
         // ReadCallback
         //
 
-        void readAvailable(quic::StreamId id) noexcept override {
-            LOG(INFO) << "Read on stream " << id;
-        }
+        void readAvailable(quic::StreamId id) noexcept override { }
 
         void readError(
             quic::StreamId id, 
