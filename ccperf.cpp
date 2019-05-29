@@ -9,14 +9,19 @@ DEFINE_int32(bytes, 1000000, "Number of bytes to transfer");
 
 void do_client() {
     auto client = QuicClient(FLAGS_ip, FLAGS_port);
-    client.connect();
+    LOG(INFO) << "connecting";
+    auto ready = client.connect();
+    ready.wait();
 
     void *data = calloc(1024, sizeof(char));
     LOG(INFO) << "sending";
     auto on_done = client.send(data, 1024);
     LOG(INFO) << "waiting";
 
-    on_done.wait();
+    int ok = on_done.get();
+    if (ok < 0) {
+        LOG(ERROR) << "send failed";
+    }
     LOG(INFO) << "done";
 }
 

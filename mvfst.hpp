@@ -27,7 +27,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
         this->evb = networkThread.getEventBase();
     }
 
-    void connect() {
+    std::future<int> connect() {
         this->evb->runInEventBaseThreadAndWait([&] {
             auto sock = std::make_unique<folly::AsyncUDPSocket>(evb);
             quicClient =
@@ -41,6 +41,8 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
             LOG(INFO) << "CCPerfMvfst connecting to " << addr.describe();
             quicClient->start(this);
         });
+
+        return transportReady.get_future();
     }
 
     std::future<int> send(void *data, u32 len) {
@@ -49,8 +51,22 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
             streamId = quicClient->createBidirectionalStream().value();
             pendingStreams[streamId].append(data, len);
             pendingStreamPromises[streamId] = std::promise<int>();
-            quicClient->notifyPendingWriteOnStream(streamId, this);
-            quicClient->registerDeliveryCallback(streamId, len - 1, this);
+            
+            // returns "Result"
+            auto ok = quicClient->notifyPendingWriteOnStream(streamId, this);
+            if (!ok) {
+                LOG(ERROR) << "Could not notifyPendingWriteOnStream: " << ok.error();
+                pendingStreamPromises[streamId].set_value(-1);
+                return; 
+            }
+
+            // returns "Result"
+            ok = quicClient->registerDeliveryCallback(streamId, len - 1, this);
+            if (!ok) {
+                LOG(ERROR) << "Could not registerDeliveryCallback: " << ok.error();
+                pendingStreamPromises[streamId].set_value(-1);
+                return;
+            }
         });
 
         return pendingStreamPromises[streamId].get_future();
@@ -59,6 +75,11 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
     //
     // ConnectionCallback
     //
+    
+    void onTransportReady() noexcept override {
+        LOG(INFO) << "Transport ready";
+        transportReady.set_value(0);
+    }
     
     void onNewBidirectionalStream(quic::StreamId id) noexcept override {
         LOG(INFO) << "Created stream " << id;
@@ -165,6 +186,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
     folly::EventBase *evb;
     std::map<quic::StreamId, folly::IOBufQueue> pendingStreams;
     std::map<quic::StreamId, std::promise<int>> pendingStreamPromises;
+    std::promise<int> transportReady;
 };
 
 class QuicServer  {
