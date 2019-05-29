@@ -6,6 +6,7 @@ ccperf: mvfst/_build mvfst.hpp ccperf.cpp
 	clang++ \
 		-std=c++17 \
 		-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/ \
+		-I /usr/local/include \
 		-I /usr/local/opt/openssl/include \
 		-I./mvfst/_build/deps/include \
 		-I./mvfst/quic/common/test \
@@ -19,12 +20,10 @@ ccperf: mvfst/_build mvfst.hpp ccperf.cpp
 		-L /usr/local/lib \
 		-L /usr/local/opt/openssl/lib \
 		$(MVFST_STATIC_LIB_LOCS) \
-		-Wl,-whole-archive \
 		$(MVFST_LIBNAMES) \
-		-Wl,-no-whole-archive \
 		-lfizz -lfizz_test_support  -lfollybenchmark -lfolly_test_util -lgmock -lgtest  \
 		-lfolly \
-		-lboost_system -lboost_filesystem -lboost_program_options -lboost_regex -lboost_context -lgflags -lsnappy -lbz2 -llzma -llz4 -ldouble-conversion -levent -lpthread -lcrypto -lssl -lsodium -lz -ldl -lunwind -liberty -lglog \
+		-lgflags -ldouble-conversion -levent -lpthread -lcrypto -lssl -lsodium -lglog \
 		ccperf.cpp
 
 mvfst/_build:
