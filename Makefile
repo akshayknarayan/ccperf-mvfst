@@ -1,14 +1,11 @@
 all: mvfst.o
 
-MVFST_STATIC_LIBS := $(shell find mvfst/_build -name "*.a")
-MVFST_STATIC_LIB_LOCS := $(shell find mvfst/_build -name "*.a" | xargs -I{} dirname {} | uniq | awk '{print "-L " $$0 " "}')
-MVFST_LIBNAMES := $(shell find mvfst/_build -name "*.a" -type f | xargs basename | sort | uniq | sed 's/lib\(.*\)\.a/-l\1/g')
-
-ccperf: mvfst/_build mvfst.hpp ccperf.cpp $(MVFST_STATIC_LIBS)
+ccperf: mvfst/_build mvfst.hpp ccperf.cpp
+	$(eval MVFST_STATIC_LIB_LOCS := $(shell find mvfst/_build -name "*.a" -type f | xargs -I{} dirname {} | sort | uniq | awk '{print "-L " $$0 " "}'))
+	$(eval MVFST_LIBNAMES := $(shell find mvfst/_build -name "*.a" -type f | grep -v "_main" | xargs -I{} basename {} | sort | uniq | sed 's/lib\(.*\)\.a/-l\1/g'))
 	clang++ \
 		-std=c++17 \
 		-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/ \
-		-I /usr/local/include \
 		-I /usr/local/opt/openssl/include \
 		-I./mvfst/_build/deps/include \
 		-I./mvfst/quic/common/test \
