@@ -11,7 +11,7 @@ void do_client() {
     auto client = QuicClient(FLAGS_ip, FLAGS_port);
     client.connect();
 
-    void *data = calloc(1204, sizeof(char));
+    void *data = calloc(1024, sizeof(char));
     LOG(INFO) << "sending";
     auto on_done = client.send(data, 1024);
     LOG(INFO) << "waiting";
