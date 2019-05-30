@@ -76,7 +76,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
         return pendingStreamPromises[streamId].get_future();
     }
 
-    // In case caller doesn't wan't to allocate a massive data buffer
+    // In case caller doesn't want to allocate a massive data buffer
     // see also sendOnStream
     std::pair<quic::StreamId, std::future<int>> createStream(u32 len) {
         quic::StreamId streamId;
@@ -88,7 +88,6 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
                 return;
             }
 
-
             pendingStreamPromises[streamId] = std::promise<int>();
             if (auto ok = quicClient->registerDeliveryCallback(streamId, len - 1, this); !ok) {
                 LOG(ERROR) << "Could not registerDeliveryCallback: " << ok.error();
@@ -97,18 +96,32 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
             }
         });
 
+        LOG(INFO) << "Created stream " << streamId;
+
         return std::pair(streamId, pendingStreamPromises[streamId].get_future());
     }
     
-    void sendOnStream(quic::StreamId id, void *data, u32 len) {
-        quic::StreamId streamId;
+    void sendOnStream(quic::StreamId streamId, void *data, u32 len) {
         this->evb->runInEventBaseThreadAndWait([&] {
             pendingStreams[streamId].append(data, len);
-            if (auto ok = quicClient->notifyPendingWriteOnStream(streamId, this); !ok) {
-                LOG(ERROR) << "Could not notifyPendingWriteOnStream: " << ok.error();
+            auto ok = quicClient->notifyPendingWriteOnStream(streamId, this);
+            if (ok.hasError() && ok.error() != quic::LocalErrorCode::CALLBACK_ALREADY_INSTALLED) {
+                LOG(ERROR) << "Could not notifyPendingWriteOnStream: " << streamId << " " << ok.error();
                 pendingStreamPromises[streamId].set_value(-1);
                 return; 
+            } else if (ok.hasError()) {
+                LOG(INFO) << "notifyPendingWriteOnStream callback already installed ";
             }
+            auto fc = quicClient->getConnectionFlowControl();
+            if (!fc) {
+                LOG(ERROR) << "getConnectionFlowConrol err: " << fc.error();
+                return;
+            }
+
+            LOG(INFO) 
+                << "sendWindowAvailable=" << quicClient->getStreamFlowControl(0).value().sendWindowAvailable
+                << " receiveWindowAvailable=" << quicClient->getStreamFlowControl(0).value().receiveWindowAvailable
+                << " streamWriteOffset=" << quicClient->getStreamWriteOffset(0).value();
         });
     }
 
@@ -169,16 +182,17 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
         quic::StreamId streamId,
         u64 maxToSend
     ) noexcept override {
-        LOG(INFO) << "Writing on " << streamId;
+        LOG(INFO) << "Writing stream=" << streamId;
         auto folly_buf = &pendingStreams[streamId];
-        auto ok = quicClient->writeChain(streamId, std::move(folly_buf->move()), true, false);
+        auto ok = quicClient->writeChain(streamId, std::move(folly_buf->move()), false, false);
         if (ok.hasError()) {
-            LOG(ERROR) << "CCPerf client writeChain error=" << uint32_t(ok.error());
+            LOG(ERROR) << "CCPerf client writeChain stream=" << streamId << " error=" << uint32_t(ok.error());
         } else if (ok.value()) { // quic didn't accept all the data we gave it
+            LOG(INFO) << "send buffer space exceeded" << streamId;
             folly_buf->append(std::move(ok.value()));
             quicClient->notifyPendingWriteOnStream(streamId, this);
         } else { // send ok
-            LOG(INFO) << "Write successful";
+            LOG(INFO) << "Write successful stream=" << streamId;
             pendingStreams.erase(streamId);
         }
     }

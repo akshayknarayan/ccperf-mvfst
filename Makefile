@@ -14,7 +14,7 @@ ccperf: mvfst/_build mvfst.hpp ccperf.cpp
 		-I./mvfst/_build/build/googletest/src/googletest/googletest/include \
 		-I./mvfst \
 		-I./mvfst/_build/deps/include \
-		-g -O1 \
+		-g -O0 \
 		-o ccperf \
 		-L /usr/local/lib \
 		-L /usr/local/opt/openssl/lib \

@@ -6,7 +6,7 @@
 DEFINE_string(mode, "client", "Send (client) or receive (server) traffic");
 DEFINE_string(ip, "127.0.0.1", "IP to connect to");
 DEFINE_int32(port, 4242, "Port to listen on/send to");
-DEFINE_int32(bytes, 1000000, "Number of bytes to transfer");
+DEFINE_int32(bytes, 100000, "Number of bytes to transfer");
 
 void do_client() {
     auto client = QuicClient(FLAGS_ip, FLAGS_port);
@@ -28,6 +28,7 @@ void do_client() {
 
     auto num_writes = ((FLAGS_bytes % CHUNK_SIZE) == 0) ? (FLAGS_bytes / CHUNK_SIZE) : ((FLAGS_bytes / CHUNK_SIZE) + 1);
     while (num_writes -- > 0) {
+        LOG(INFO) << "writing " << num_writes << " chunks";
         client.sendOnStream(streamId, data, CHUNK_SIZE);
     }
 
