@@ -1,6 +1,7 @@
 #include "mvfst.hpp"
 
 #include <gflags/gflags.h>
+#include <fizz/crypto/Utils.h>
 
 DEFINE_string(mode, "client", "Send (client) or receive (server) traffic");
 DEFINE_string(ip, "127.0.0.1", "IP to connect to");
@@ -32,6 +33,7 @@ void do_server() {
 
 int main(int argc, char **argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
+    fizz::CryptoUtils::init();
 
     if (FLAGS_mode == "client") {
         do_client();
