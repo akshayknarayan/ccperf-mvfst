@@ -1,4 +1,4 @@
-all: mvfst.o
+all: ccperf
 
 ccperf: mvfst/_build mvfst.hpp ccperf.cpp
 	$(eval MVFST_STATIC_LIB_LOCS := $(shell find mvfst/_build -name "*.a" -type f | xargs -I{} dirname {} | sort | uniq | awk '{print "-L " $$0 " "}'))
