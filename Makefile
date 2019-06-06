@@ -14,6 +14,7 @@ ccperf: mvfst/_build mvfst.hpp ccperf.cpp
 		-I./mvfst/_build/build/googletest/src/googletest/googletest/include \
 		-I./mvfst \
 		-I./mvfst/_build/deps/include \
+		mvfst.cpp ccperf.cpp \
 		-g -O0 \
 		-o ccperf \
 		-L /usr/local/lib \
@@ -24,8 +25,7 @@ ccperf: mvfst/_build mvfst.hpp ccperf.cpp
 		-Wl,-no-whole-archive \
 		-lfizz -lfizz_test_support  -lfollybenchmark -lfolly_test_util -lgmock -lgtest  \
 		-lfolly \
-		-lboost_system -lboost_filesystem -lboost_program_options -lboost_regex -lboost_context -lgflags -lsnappy -lbz2 -llzma -llz4 -ldouble-conversion -levent -lpthread -lcrypto -lssl -lsodium -lz -ldl -lunwind -liberty -lglog \
-		ccperf.cpp
+		-lboost_system -lboost_filesystem -lboost_program_options -lboost_regex -lboost_context -lgflags -lsnappy -lbz2 -llzma -llz4 -ldouble-conversion -levent -lpthread -lcrypto -lssl -lsodium -lz -ldl -lunwind -liberty -lglog
 
 mvfst/_build:
 	cd mvfst && env MVFST_FOLLY_USE_JEMALLOC=n ./build_helper.sh
