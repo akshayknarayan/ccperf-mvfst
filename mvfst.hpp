@@ -184,7 +184,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
     ) noexcept override {
         LOG(INFO) << "Writing stream=" << streamId;
         auto folly_buf = &pendingStreams[streamId];
-        auto ok = quicClient->writeChain(streamId, std::move(folly_buf->move()), false, false);
+        auto ok = quicClient->writeChain(streamId, std::move(folly_buf->move()), false, true);
         if (ok.hasError()) {
             LOG(ERROR) << "CCPerf client writeChain stream=" << streamId << " error=" << uint32_t(ok.error());
         } else if (ok.value()) { // quic didn't accept all the data we gave it
@@ -292,7 +292,11 @@ class QuicServer  {
         // ReadCallback
         //
 
-        void readAvailable(quic::StreamId id) noexcept override { }
+        void readAvailable(quic::StreamId id) noexcept override {
+            if (auto ok = quicSocket->read(id, 0); !ok) {
+                LOG(ERROR) << id << "read error " << ok.error();
+            } // throw the read bytes away
+        }
 
         void readError(
             quic::StreamId id, 
