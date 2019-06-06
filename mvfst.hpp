@@ -96,7 +96,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
             }
         });
 
-        LOG(INFO) << "Created stream " << streamId;
+        VLOG(1) << "Created stream " << streamId;
 
         return std::pair(streamId, pendingStreamPromises[streamId].get_future());
     }
@@ -110,7 +110,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
                 pendingStreamPromises[streamId].set_value(-1);
                 return; 
             } else if (ok.hasError()) {
-                LOG(INFO) << "notifyPendingWriteOnStream callback already installed ";
+                VLOG(5) << "notifyPendingWriteOnStream callback already installed ";
             }
             auto fc = quicClient->getConnectionFlowControl();
             if (!fc) {
@@ -118,10 +118,12 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
                 return;
             }
 
-            LOG(INFO) 
-                << "sendWindowAvailable=" << quicClient->getStreamFlowControl(0).value().sendWindowAvailable
-                << " receiveWindowAvailable=" << quicClient->getStreamFlowControl(0).value().receiveWindowAvailable
-                << " streamWriteOffset=" << quicClient->getStreamWriteOffset(0).value();
+            VLOG(10) 
+                << " sendWindowAvailable=" << quicClient->getStreamFlowControl(streamId).value().sendWindowAvailable
+                << " sendWindowMaxOffset=" << quicClient->getStreamFlowControl(streamId).value().sendWindowMaxOffset
+                << " receiveWindowAvailable=" << quicClient->getStreamFlowControl(streamId).value().receiveWindowAvailable
+                << " receiveWindowMaxOffset=" << quicClient->getStreamFlowControl(streamId).value().receiveWindowMaxOffset
+                << " streamWriteOffset=" << quicClient->getStreamWriteOffset(streamId).value();
         });
     }
 
@@ -146,7 +148,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
         quic::StreamId id,
         quic::ApplicationErrorCode error
     ) noexcept override {
-        LOG(INFO) << "Done sending";
+        LOG(INFO) << "Got StopSending message";
     }
 
     void onConnectionEnd() noexcept override {
@@ -182,7 +184,6 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
         quic::StreamId streamId,
         u64 maxToSend
     ) noexcept override {
-        LOG(INFO) << "Writing stream=" << streamId;
         auto folly_buf = &pendingStreams[streamId];
         auto ok = quicClient->writeChain(streamId, std::move(folly_buf->move()), false, true);
         if (ok.hasError()) {
@@ -192,7 +193,6 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
             folly_buf->append(std::move(ok.value()));
             quicClient->notifyPendingWriteOnStream(streamId, this);
         } else { // send ok
-            LOG(INFO) << "Write successful stream=" << streamId;
             pendingStreams.erase(streamId);
         }
     }
@@ -264,7 +264,7 @@ class QuicServer  {
         //
 
         void onNewBidirectionalStream(quic::StreamId id) noexcept override {
-            LOG(INFO) << "New stream " << id;
+            VLOG(1) << "New stream " << id;
             quicSocket->setReadCallback(id, this);
         }
 
@@ -285,7 +285,7 @@ class QuicServer  {
         void onConnectionError(
             std::pair<quic::QuicErrorCode, std::string> error
         ) noexcept override {
-            LOG(ERROR) << "CCPerf server connection error=" << error.second;
+            VLOG(5) << "CCPerf server connection error=" << error.second;
         }
 
         // 
@@ -302,7 +302,7 @@ class QuicServer  {
             quic::StreamId id, 
             std::pair<quic::QuicErrorCode, folly::Optional<folly::StringPiece>> err
         ) noexcept override {
-            LOG(ERROR) << "CCPerf server read error=" << err;
+            VLOG(5) << "CCPerf server read error=" << err << " streamId=" << id;
         }
 
       private:

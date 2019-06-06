@@ -28,7 +28,6 @@ void do_client() {
 
     auto num_writes = ((FLAGS_bytes % CHUNK_SIZE) == 0) ? (FLAGS_bytes / CHUNK_SIZE) : ((FLAGS_bytes / CHUNK_SIZE) + 1);
     while (num_writes -- > 0) {
-        LOG(INFO) << "writing " << num_writes << " chunks";
         client.sendOnStream(streamId, data, CHUNK_SIZE);
     }
 
