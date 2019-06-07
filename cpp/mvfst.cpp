@@ -1,6 +1,6 @@
 #include "mvfst.hpp"
 
-QuicClient::QuicClient(const std::string& host, u16 port) : addr(host.c_str(), port), networkThread("CCPerfClientThread") {
+QuicClient::QuicClient(const char *host, u16 port) : addr(host, port), networkThread("CCPerfClientThread") {
     this->evb = networkThread.getEventBase();
 }
 
@@ -22,7 +22,7 @@ std::future<int> QuicClient::connect() {
     return transportReady.get_future();
 }
 
-std::future<int> QuicClient::send(void *data, u32 len) {
+std::future<int> QuicClient::send(const void *data, u32 len) {
     quic::StreamId streamId;
     this->evb->runInEventBaseThreadAndWait([&] {
         if (auto ok = quicClient->createBidirectionalStream()) {
@@ -76,7 +76,7 @@ std::pair<quic::StreamId, std::future<int>> QuicClient::createStream(u32 len) {
     return std::pair(streamId, pendingStreamPromises[streamId].get_future());
 }
 
-void QuicClient::sendOnStream(quic::StreamId streamId, void *data, u32 len) {
+void QuicClient::sendOnStream(quic::StreamId streamId, const void *data, u32 len) {
     this->evb->runInEventBaseThreadAndWait([&] {
         pendingStreams[streamId].append(data, len);
         auto ok = quicClient->notifyPendingWriteOnStream(streamId, this);

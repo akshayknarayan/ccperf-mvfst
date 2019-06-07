@@ -27,7 +27,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
     // external API
     //
     
-    QuicClient(const std::string& host, u16 port);
+    QuicClient(const char *host, u16 port);
 
     std::future<int> connect();
     std::future<int> send(void *data, u32 len);
