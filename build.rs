@@ -14,6 +14,14 @@ fn main() {
         .wait()
         .expect("mvfst build failed");
 
+    std::process::Command::new("cp")
+        .arg("./cpp/libccperf.so")
+        .arg(out_path.join("/libccperf.so"))
+        .spawn()
+        .expect("cp spawn failed")
+        .wait()
+        .expect("cp failed");
+
     let bindings = bindgen::Builder::default()
         .header("./cpp/ccperf.h")
         .clang_arg("-xc++")

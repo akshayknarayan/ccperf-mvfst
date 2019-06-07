@@ -1,4 +1,6 @@
 extern crate ccperf_mvfst;
+extern crate chrono;
+extern crate chrono_english;
 extern crate failure;
 
 use failure::bail;
@@ -37,6 +39,12 @@ struct Opt {
 }
 
 fn main() {
+    let x =
+        chrono_english::parse_date_string("1m", chrono::Local::now(), chrono_english::Dialect::Us);
+    println!("{:?}", x);
+
+    return;
+
     let opt = Opt::from_args();
 
     match opt.mode {
