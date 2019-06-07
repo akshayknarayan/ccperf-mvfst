@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 pub struct Client(Arc<Mutex<QuicClient>>);
 
 impl Client {
-    fn new(addr: std::net::SocketAddrV4) -> Self {
+    pub fn new(addr: std::net::SocketAddrV4) -> Self {
         let ip = format!("{}", addr.ip());
         let port = addr.port();
 
@@ -25,19 +25,19 @@ impl Client {
         })))
     }
 
-    fn connect(&mut self) -> Future {
+    pub fn connect(&mut self) -> Future {
         let mut cl = self.0.lock().unwrap();
         Future(unsafe { cl.connect() })
     }
 
-    fn send(&mut self, data: &[u8]) -> Future {
+    pub fn send(&mut self, data: &[u8]) -> Future {
         let raw_data = data.as_ptr() as *const std::ffi::c_void;
         let len = data.len();
         let mut cl = self.0.lock().unwrap();
         Future(unsafe { cl.send(raw_data, len as u32) })
     }
 
-    fn new_stream(&mut self, len: usize) -> Stream {
+    pub fn new_stream(&mut self, len: usize) -> Stream {
         let mut cl = self.0.lock().unwrap();
         let res = unsafe { cl.createStream(len as u32) };
         Stream(self.0.clone(), res.first, Future(res.second), len)
@@ -47,14 +47,14 @@ impl Client {
 pub struct Stream(Arc<Mutex<QuicClient>>, quic_StreamId, Future, usize);
 
 impl Stream {
-    fn send(&mut self, data: &[u8]) {
+    pub fn send(&mut self, data: &[u8]) {
         let raw_data = data.as_ptr() as *const std::ffi::c_void;
         let len = data.len() as u32;
         let mut cl = self.0.lock().unwrap();
         unsafe { cl.sendOnStream(self.1, raw_data, len) };
     }
 
-    fn wait(self) -> i32 {
+    pub fn wait(self) -> i32 {
         self.2.wait()
     }
 }
@@ -62,11 +62,14 @@ impl Stream {
 pub struct Server(QuicServer);
 
 impl Server {
-    fn new(port: u16) -> Self {
+    pub fn new(port: u16) -> Self {
         Self(unsafe { QuicServer::new(port) })
     }
 
-    fn start(mut self) {
+    pub fn start(mut self) -> ! {
         unsafe { self.0.start() };
+        // start() never returns. Put this here to convince rust
+        // that return type ! is correct
+        unreachable!();
     }
 }
