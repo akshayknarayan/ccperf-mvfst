@@ -10,15 +10,15 @@ class QuicClient {
     // external API
     //
     
-    QuicClient(const std::string& host, u16 port);
+    QuicClient(const std::string& host, uint16_t port);
 
     std::future<int> connect();
-    std::future<int> send(void *data, u32 len);
+    std::future<int> send(void *data, uint32_t len);
 
     // In case caller doesn't want to allocate a massive data buffer
     // see also sendOnStream
-    std::pair<quic::StreamId, std::future<int>> createStream(u32 len);
-    void sendOnStream(quic::StreamId streamId, void *data, u32 len);
+    std::pair<quic::StreamId, std::future<int>> createStream(uint32_t len);
+    void sendOnStream(quic::StreamId streamId, void *data, uint32_t len);
 };
 
 class QuicServer {
@@ -27,6 +27,6 @@ class QuicServer {
     // external API
     //
 
-    QuicServer(u16 port);
+    QuicServer(uint16_t port);
     void start();
 };
