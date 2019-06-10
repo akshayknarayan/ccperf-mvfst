@@ -132,7 +132,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
     //
     
     void onTransportReady() noexcept override {
-        LOG(INFO) << "Transport ready";
+        VLOG(1) << "Transport ready";
         transportReady.set_value(0);
     }
     
@@ -219,7 +219,7 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
         u64 offset,
         std::chrono::microseconds rtt
     ) noexcept override {
-        LOG(INFO) << "CCPerf stream done: " << streamId << " rtt " << rtt.count();
+        VLOG(1) << "CCPerf stream done: " << streamId << " rtt " << rtt.count();
         pendingStreamPromises[streamId].set_value(0);
         pendingStreamPromises.erase(streamId);
         quicClient->shutdownWrite(streamId);
