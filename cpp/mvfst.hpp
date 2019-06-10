@@ -30,12 +30,12 @@ class QuicClient : public quic::QuicSocket::ConnectionCallback,
     QuicClient(const char *host, u16 port);
 
     std::future<int> connect();
-    std::future<int> send(void *data, u32 len);
+    std::future<int> send(const void *data, u32 len);
 
     // In case caller doesn't want to allocate a massive data buffer
     // see also sendOnStream
     std::pair<quic::StreamId, std::future<int>> createStream(u32 len);
-    void sendOnStream(quic::StreamId streamId, void *data, u32 len);
+    void sendOnStream(quic::StreamId streamId, const void *data, u32 len);
 
     //
     // ConnectionCallback

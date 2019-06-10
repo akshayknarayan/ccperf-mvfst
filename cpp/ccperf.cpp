@@ -9,7 +9,7 @@ DEFINE_int32(port, 4242, "Port to listen on/send to");
 DEFINE_int32(bytes, 100000, "Number of bytes to transfer");
 
 void do_client() {
-    auto client = QuicClient(FLAGS_ip, FLAGS_port);
+    auto client = QuicClient(FLAGS_ip.c_str(), FLAGS_port);
     LOG(INFO) << "connecting";
     auto ready = client.connect();
     ready.wait();
