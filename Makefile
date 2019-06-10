@@ -22,7 +22,7 @@ ccperf: mvfst/_build mvfst.hpp ccperf.cpp
 		-Wl,-whole-archive \
 		$(MVFST_LIBNAMES) \
 		-Wl,-no-whole-archive \
-		-lfizz -lfizz_test_support  -lfollybenchmark -lfolly_test_util -lgmock -lgtest  \
+		-lfizz -lfollybenchmark -lfolly_test_util -lgmock -lgtest  \
 		-lfolly \
 		-lboost_system -lboost_filesystem -lboost_program_options -lboost_regex -lboost_context -lgflags -lsnappy -lbz2 -llzma -llz4 -ldouble-conversion -levent -lpthread -lcrypto -lssl -lsodium -lz -ldl -lunwind -liberty -lglog \
 		ccperf.cpp
