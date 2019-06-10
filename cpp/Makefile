@@ -1,24 +1,17 @@
 all: ccperf
 
-ccperf: mvfst/_build mvfst.hpp ccperf.cpp
+ccperf: mvfst/_build mvfst.o ccperf.cpp
 	$(eval MVFST_STATIC_LIB_LOCS := $(shell find mvfst/_build -name "*.a" -type f | xargs -I{} dirname {} | sort | uniq | awk '{print "-L " $$0 " "}'))
 	$(eval MVFST_LIBNAMES := $(shell find mvfst/_build -name "*mvfst*.a" -type f | xargs -I{} basename {} | sort | uniq | sed 's/lib\(.*\)\.a/-l\1/g'))
 	clang++ \
 		-std=c++17 \
-		-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/ \
-		-I /usr/local/opt/openssl/include \
-		-I./mvfst/_build/deps/include \
-		-I./mvfst/quic/common/test \
-		-I./mvfst/_build/build/fizz_project/src/fizz_project \
-		-I./mvfst/_build/build/googletest/src/googletest/googlemock/include \
-		-I./mvfst/_build/build/googletest/src/googletest/googletest/include \
 		-I./mvfst \
 		-I./mvfst/_build/deps/include \
-		mvfst.cpp ccperf.cpp \
+		-I./mvfst/_build/build/fizz_project/src/fizz_project \
+		mvfst.o ccperf.cpp \
 		-g -O0 \
 		-o ccperf \
 		-L /usr/local/lib \
-		-L /usr/local/opt/openssl/lib \
 		$(MVFST_STATIC_LIB_LOCS) \
 		-Wl,-whole-archive \
 		$(MVFST_LIBNAMES) \
@@ -27,32 +20,35 @@ ccperf: mvfst/_build mvfst.hpp ccperf.cpp
 		-lfolly \
 		-lboost_system -lboost_filesystem -lboost_program_options -lboost_regex -lboost_context -lgflags -lsnappy -lbz2 -llzma -llz4 -ldouble-conversion -levent -lpthread -lcrypto -lssl -lsodium -lz -ldl -lunwind -liberty -lglog
 
-libccperf.so: mvfst/_build mvfst.hpp ccperf.cpp
+libccperf.so: mvfst.o
 	$(eval MVFST_STATIC_LIB_LOCS := $(shell find mvfst/_build -name "*.a" -type f | xargs -I{} dirname {} | sort | uniq | awk '{print "-L " $$0 " "}'))
 	$(eval MVFST_LIBNAMES := $(shell find mvfst/_build -name "*mvfst*.a" -type f | xargs -I{} basename {} | sort | uniq | sed 's/lib\(.*\)\.a/-l\1/g'))
 	clang++ \
+		-shared \
+		mvfst.o \
+		-o $@ \
+		-L /usr/local/lib \
+		$(MVFST_STATIC_LIB_LOCS) \
+		-Wl,-whole-archive \
+		$(MVFST_LIBNAMES) \
+		-Wl,-no-whole-archive \
+		-lfizz -lfizz_test_support  -lfollybenchmark -lfolly_test_util -lgmock -lgtest  \
+		-lfolly \
+		-lboost_system -lboost_filesystem -lboost_program_options -lboost_regex -lboost_context -lgflags -lsnappy -lbz2 -llzma -llz4 -ldouble-conversion -levent -lpthread -lcrypto -lssl -lsodium -lz -ldl -lunwind -liberty -lglog
+
+mvfst.o: mvfst/_build mvfst.hpp
+	clang++ \
 		-std=c++17 \
-		-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/ \
 		-I /usr/local/include \
-		-I /usr/local/opt/openssl/include \
 		-I./mvfst/_build/deps/include \
 		-I./mvfst/quic/common/test \
 		-I./mvfst/_build/build/fizz_project/src/fizz_project \
 		-I./mvfst/_build/build/googletest/src/googletest/googlemock/include \
 		-I./mvfst/_build/build/googletest/src/googletest/googletest/include \
 		-I./mvfst \
-		-I./mvfst/_build/deps/include \
 		mvfst.cpp \
-		-shared \
 		-g -Ofast \
-		-o libccperf.so \
-		-L /usr/local/lib \
-		-L /usr/local/opt/openssl/lib \
-		$(MVFST_STATIC_LIB_LOCS) \
-		$(MVFST_LIBNAMES) \
-		-lfizz -lfizz_test_support  -lfollybenchmark -lfolly_test_util -lgmock -lgtest  \
-		-lfolly \
-		-lgflags -ldouble-conversion -levent -lpthread -lcrypto -lssl -lsodium -lglog
+		-c -o mvfst.o
 
 mvfst/_build:
 	cd mvfst && env MVFST_FOLLY_USE_JEMALLOC=n ./build_helper.sh
